@@ -2,16 +2,20 @@ local doorMenu
 local DoorList = {}
 
 
-AddEventHandler('cs-doorLock', RetrieveComponents)
+AddEventHandler("cs-doorLock:DependencyUpdate", RetrieveComponents)
 function RetrieveComponents()
-    Menu = exports['mythic-base']:FetchComponent('Menu')
-    Notification = exports['mythic-base']:FetchComponent('Notification')
+    Logger = exports["mythic-base"]:FetchComponent("Logger")
+    Chat = exports["mythic-base"]:FetchComponent("Chat")
+    Menu = exports["mythic-base"]:FetchComponent("Menu")
+    Notification = exports["mythic-base"]:FetchComponent("Notification")
 end
 
 AddEventHandler('Core:Shared:Ready', function()
-    exports['mythic-base']:RequestDependencies('Doors', {
-        'Notification',
-        'Menu'
+    exports["mythic-base"]:RequestDependencies("Doors", {
+        "Logger",
+        "Chat",
+        "Menu",
+        "Notification"
     }, function(error)
         if #error > 0 then return end
         RetrieveComponents()
@@ -187,6 +191,69 @@ function OpenDoorConfigMenu()
     local restrictionJobPermission = false
     local restrictionReqDuty = false
 
+    -- Dropdown to Select Auto Restriction
+    local selectedAutoRestriction = nil
+    local restrictionList = {}
+
+    -- Populate the dropdown list from Config.AutoRestriction
+    if Config.AutoRestriction then
+        for key, restriction in pairs(Config.AutoRestriction) do
+            table.insert(restrictionList, { label = key, value = key })
+        end
+    end
+
+    doorMenu.Add:Text('Select Auto Restriction', { 'pad', 'textLarge', 'left' })
+
+    doorMenu.Add:Select('Available Restrictions', {
+        disabled = false,
+        current = 1, -- Default to first item
+        list = restrictionList
+    }, function(data)
+        selectedAutoRestriction = data.data.value
+        if Config.Debug then
+            print("Selected Auto Restriction: " .. selectedAutoRestriction)
+        end
+    end)
+
+    -- Button to Apply Selected Auto Restriction
+    doorMenu.Add:Button('Apply Selected Restriction', { success = true }, function()
+        if selectedAutoRestriction and Config.AutoRestriction[selectedAutoRestriction] then
+            local restriction = Config.AutoRestriction[selectedAutoRestriction]
+
+            -- Check if the restriction already exists
+            local exists = false
+            for _, existing in ipairs(doorConfig.restricted) do
+                if existing.job == restriction.id then
+                    exists = true
+                    break
+                end
+            end
+
+            -- Add restriction if not already present
+            if not exists then
+                table.insert(doorConfig.restricted, {
+                    type = 'job',
+                    job = restriction.id,
+                    workplace = restriction.workplace ~= '' and restriction.workplace or 'false',
+                    gradeLevel = restriction.jobGrade,
+                    jobPermission = false,
+                    reqDuty = false,
+                })
+
+                Notification:Success('Restriction applied: ' .. selectedAutoRestriction, 3000, "check-circle")
+
+                if Config.Debug then
+                    print("Auto Restriction added: " .. selectedAutoRestriction)
+                end
+            else
+                Notification:Error('Restriction already added!', 3000, "times-circle")
+            end
+        else
+            Notification:Error('Please select a restriction!', 3000, "times-circle")
+        end
+    end)
+
+
     -- Add Restriction Fields
     doorMenu.Add:Text('Add Job Restriction', { 'pad', 'textLarge', 'left' })
 
@@ -292,6 +359,8 @@ function OpenDoorConfigMenu()
             if Config.Debug then
                 print("Restriction added: " .. restrictionJob)
             end
+            local restrictionAddedNotify = tostring("You have added: " ..restrictionJob)
+            Notification:Success(restrictionAddedNotify, 3500, "check-circle")
         else
             Notification:Error('Please enter a valid Job Type.', 3000, 'times-circle')
         end
@@ -318,13 +387,11 @@ function OpenDoorConfigMenu()
             end
         end
 
+
         Notification:Success('Look at the door and press E to save.', 4000, 'eye')
         WaitForDoorSelection(doorConfig)
         doorMenu:Close()
     end)
-
-
-
 
     doorMenu:Show()
 end
