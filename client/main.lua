@@ -234,7 +234,7 @@ function OpenDoorConfigMenu()
                 table.insert(doorConfig.restricted, {
                     type = 'job',
                     job = restriction.id,
-                    workplace = restriction.workplace ~= '' and restriction.workplace or 'false',
+                    workplace = restriction.workplace == false and 'false' or restrictionWorkplace,
                     gradeLevel = restriction.jobGrade,
                     jobPermission = false,
                     reqDuty = false,
