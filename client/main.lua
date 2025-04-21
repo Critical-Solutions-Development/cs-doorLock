@@ -125,16 +125,13 @@ function WaitForDoorSelection(doorConfig)
 end
 
 
--- Function to Save the Door Config
 function SaveDoorConfig(door)
-    -- Convert locked value to 'true' or 'false' before saving
     local lockedValue = door.locked and 'true' or 'false'
+    local specialValue = door.special and 'true' or 'false'
     local restrictionsFormatted = {}
 
-    -- Format restrictions based on the data in door.restricted
     for _, restriction in ipairs(door.restricted) do
         if restriction.type == "job" then
-            -- If workplace is false or empty, set it as 'false' (without quotes), otherwise treat it as a string
             local workplaceValue = (restriction.workplace == false or restriction.workplace == '') and 'false' or "'" .. restriction.workplace .. "'"
             local jobPermissionValue = restriction.jobPermission and 'true' or 'false'
             local reqDutyValue = restriction.reqDuty and 'true' or 'false'
@@ -143,7 +140,6 @@ function SaveDoorConfig(door)
                 "{ type = '%s', job = '%s', workplace = %s, gradeLevel = %d, jobPermission = %s, reqDuty = %s }",
                 restriction.type, restriction.job, workplaceValue, restriction.gradeLevel or 0, jobPermissionValue, reqDutyValue
             ))
-
         elseif restriction.type == "RealHouse" then
             table.insert(restrictionsFormatted, string.format(
                 "{ type = '%s', HouseName = '%s' }", restriction.type, restriction.HouseName
@@ -151,24 +147,32 @@ function SaveDoorConfig(door)
         end
     end
 
-    -- Format the door data into the save string
+    -- Now include special in the formatted string
     local newDoorData = string.format([[ 
         {
             id = "%s",
             model = %s,
             coords = vector3(%s, %s, %s),
             locked = %s,
+            special = %s,
             double = %s,
             rate = 6.0,
             restricted = { %s }
         },
-    ]], door.id, door.model, door.coords.x, door.coords.y, door.coords.z, lockedValue, door.double and '"' .. door.double .. '"' or 'nil', table.concat(restrictionsFormatted, ", "))
+    ]],
+        door.id,
+        door.model,
+        door.coords.x, door.coords.y, door.coords.z,
+        lockedValue,
+        specialValue,
+        door.double and '"' .. door.double .. '"' or 'nil',
+        table.concat(restrictionsFormatted, ", ")
+    )
 
-    -- Send data to the server for saving
     TriggerServerEvent('cs-doorLock:saveConfig', newDoorData)
-
     Notification:Success('Door configuration saved!', 3500, 'check-circle')
 end
+
 
 -- Command to Open the Menu
 RegisterNetEvent('cs-doorLock:openMenu')

@@ -56,6 +56,24 @@ function OpenDoorConfigMenu()
         end
     end)
 
+    -- Special Door Select Menu
+    doorMenu.Add:Text('Is Door Special?', { 'pad', 'textLarge', 'left' })
+    local specialStatus = doorConfig.special or false
+    doorMenu.Add:Select('Select', {
+        disabled = false,
+        current = specialStatus and 2 or 1, -- fix for default
+        list = {
+            { label = 'Not Special', value = 1 },
+            { label = 'Special', value = 2 },
+        }
+    }, function(data)
+        specialStatus = data.data.value == 2
+        if Config.Debug then
+            print("Door special status selected: " .. (specialStatus and "Special" or "Not Special"))
+        end
+    end)
+
+
     -- Adding Restriction
     local restrictionType = 'job'  
     local restrictionJob = ''
@@ -138,8 +156,13 @@ function OpenDoorConfigMenu()
     ShowHouseRestrictions(_subHouseMenu, doorConfig)
     _subHouseMenu.Add:SubMenuBack('Back')
 
+    local _subGarageMenu = Menu:Create('subGarageMenu', 'Garage')
+    GarageMenu(_subGarageMenu, doorConfig)
+    _subGarageMenu.Add:SubMenuBack('Back')
+
     doorMenu.Add:SubMenu('Restrict to Job', _subJobMenu)
     doorMenu.Add:SubMenu('Restrict to House', _subHouseMenu)
+    doorMenu.Add:SubMenu('Make it a Garage', _subGarageMenu)
 
     -- Save & Select Door
     doorMenu.Add:Button('Save & Select Door', { success = true }, function()
@@ -147,6 +170,7 @@ function OpenDoorConfigMenu()
         doorConfig.id = doorIdInput
         doorConfig.locked = lockedStatus
         doorConfig.double = doorDoubled and doorDoubled or nil
+        doorConfig.special = specialStatus -- ✅ Include special status!
 
         -- Print final door configuration to the console (optional)
         if Config.Debug then
@@ -298,5 +322,91 @@ function ShowJobRestrictions(_Menu, _DoorConfig)
         end
         local restrictionAddedNotify = tostring("You have added: " ..restrictionJob)
         Notification:Success(restrictionAddedNotify, 3500, "check-circle")
+    end)
+end
+
+function GarageMenu(_Menu, _DoorConfig)
+    local doorMenu = _Menu
+    local doorConfig = _DoorConfig
+
+    local zoneName, zoneX, zoneY, zoneZ = nil, nil, nil, nil
+    local length, width, heading = 4.0, 4.0, 0.0
+    local minZ, maxZ = 0.0, 3.0
+    local doorGarageId = nil  -- New variable for door garage ID
+
+    doorMenu.Add:Text('Set Garage PolyZone', { 'pad', 'textLarge', 'left' })
+
+    -- Zone Name
+    doorMenu.Add:Input('Zone Name', {
+        disabled = false,
+        max = 255,
+        current = zoneName or '',
+    }, function(data)
+        zoneName = data.data.value
+    end)
+
+    -- Coords
+    doorMenu.Add:Input('Zone Center X', { disabled = false, max = 10, current = '' }, function(data)
+        zoneX = tonumber(data.data.value)
+    end)
+    doorMenu.Add:Input('Zone Center Y', { disabled = false, max = 10, current = '' }, function(data)
+        zoneY = tonumber(data.data.value)
+    end)
+    doorMenu.Add:Input('Zone Center Z', { disabled = false, max = 10, current = '' }, function(data)
+        zoneZ = tonumber(data.data.value)
+    end)
+
+    -- Dimensions
+    doorMenu.Add:Input('Length', { disabled = false, max = 10, current = tostring(length) }, function(data)
+        length = tonumber(data.data.value) or length
+    end)
+    doorMenu.Add:Input('Width', { disabled = false, max = 10, current = tostring(width) }, function(data)
+        width = tonumber(data.data.value) or width
+    end)
+
+    -- Heading
+    doorMenu.Add:Input('Heading', { disabled = false, max = 10, current = tostring(heading) }, function(data)
+        heading = tonumber(data.data.value) or heading
+    end)
+
+    -- Z bounds
+    doorMenu.Add:Input('Min Z', { disabled = false, max = 10, current = tostring(minZ) }, function(data)
+        minZ = tonumber(data.data.value) or minZ
+    end)
+    doorMenu.Add:Input('Max Z', { disabled = false, max = 10, current = tostring(maxZ) }, function(data)
+        maxZ = tonumber(data.data.value) or maxZ
+    end)
+
+    -- Door Garage ID
+    doorMenu.Add:Input('Garage Door ID', {
+        disabled = false,
+        max = 255,
+        current = doorGarageId or '',
+    }, function(data)
+        doorGarageId = data.data.value
+    end)
+
+    -- Final Save Button
+    doorMenu.Add:Button('Save Garage Zone', {}, function()
+        if not zoneName or not zoneX or not zoneY or not zoneZ or not doorGarageId then
+            Notification:Error('Missing required zone data.', 3000, 'alert-triangle')
+            return
+        end
+
+        local zoneString = string.format([[
+function CreateGaragePolyZones()
+    Polyzone.Create:Box('%s', vector3(%s, %s, %s), %s, %s, {
+        heading = %s,
+        minZ = %s,
+        maxZ = %s
+    }, {
+        door_garage_id = '%s'
+    })
+end
+]], zoneName, zoneX, zoneY, zoneZ, length, width, heading, minZ, maxZ, doorGarageId)
+
+        -- Send to server to save as file
+        TriggerServerEvent('cs-doorLock:saveGaragePoly', zoneString)
+        Notification:Success('Garage polyzone config saved!', 3500, 'check-circle')
     end)
 end

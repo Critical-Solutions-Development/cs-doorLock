@@ -39,9 +39,6 @@ This is a Lua script that provides a menu for configuring doors in a game server
    - Copy the contents of this to a new file within your `mythic-doors/shared/doorConfig/filename.lua`
 5. Restart your Server
 
-## Support
-For Support, join our [discord](https://discord.gg/ReFfse53sf) and open a ticket! We will be happy to help where we can!
-
 ## Future Updates
 - Gang Features
 - Garage Doors

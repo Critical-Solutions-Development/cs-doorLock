@@ -64,3 +64,45 @@ AddEventHandler('cs-doorLock:saveConfig', function(newDoorData)
         return
     end
 end)
+
+RegisterNetEvent('cs-doorLock:saveGaragePoly')
+AddEventHandler('cs-doorLock:saveGaragePoly', function(newGarageData)
+    local lvl = Fetch:Source(source).Permissions:GetLevel()
+    if lvl >= 75 then 
+        local fileName = 'garage_polys.lua'
+
+        -- Load existing data from file
+        local existingData = LoadResourceFile(GetCurrentResourceName(), fileName) or ""
+
+        -- Trim any leading/trailing whitespace
+        existingData = existingData:match("^%s*(.-)%s*$")
+
+        if not existingData or existingData == "" then
+            -- Start fresh if the file is empty
+            Logger:Info("cs-doorLock", "Garage file created")
+            existingData = newGarageData
+        else
+            -- Append new garage zone data before final closing `})`
+            if existingData:sub(-2) == "})" then
+                existingData = existingData:sub(1, -3) -- Remove "})"
+                existingData = existingData .. "\n" .. newGarageData .. "\n})"
+            else
+                -- Fallback if formatting is broken
+                Logger:Error("cs-doorLock", "Garage File format incorrect.")
+                existingData = newGarageData
+            end
+        end
+
+        -- Save updated data back to the file
+        local result = SaveResourceFile(GetCurrentResourceName(), fileName, existingData, -1)
+
+        if result then
+            Logger:Info("cs-doorLock", "Garage zone saved successfully.")
+        else
+            Logger:Error("cs-doorLock", "Error saving garage polyzone.")
+        end
+    else
+        Logger:Error("cs-doorLock", "Insufficient permissions to save garage polyzone.")
+    end
+end)
+
