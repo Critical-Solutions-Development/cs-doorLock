@@ -132,7 +132,16 @@ function SaveDoorConfig(door)
 
     for _, restriction in ipairs(door.restricted) do
         if restriction.type == "job" then
-            local workplaceValue = (restriction.workplace == false or restriction.workplace == '') and 'false' or "'" .. restriction.workplace .. "'"
+            -- Safely check if workplace is empty or nil and assign properly
+            local workplaceRaw = restriction.workplace
+            local workplaceValue
+
+            if workplaceRaw == nil or workplaceRaw == '' or workplaceRaw == false then
+                workplaceValue = 'false'
+            else
+                workplaceValue = string.format("'%s'", workplaceRaw)
+            end
+
             local jobPermissionValue = restriction.jobPermission and 'true' or 'false'
             local reqDutyValue = restriction.reqDuty and 'true' or 'false'
 
@@ -147,7 +156,6 @@ function SaveDoorConfig(door)
         end
     end
 
-    -- Now include special in the formatted string
     local newDoorData = string.format([[ 
         {
             id = "%s",
@@ -172,6 +180,7 @@ function SaveDoorConfig(door)
     TriggerServerEvent('cs-doorLock:saveConfig', newDoorData)
     Notification:Success('Door configuration saved!', 3500, 'check-circle')
 end
+
 
 
 -- Command to Open the Menu
