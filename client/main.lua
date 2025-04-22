@@ -80,7 +80,7 @@ function IsDoorEntity(entity)
 end
 
 -- Function to Handle Door Selection
-function WaitForDoorSelection(doorConfig)
+function WaitForDoorSelection(doorConfig, FirstOneDone)
     Citizen.CreateThread(function()
         local selectedDoor
         while true do
@@ -91,24 +91,28 @@ function WaitForDoorSelection(doorConfig)
                 local coords = GetEntityCoords(doorEntity)
                 local model = GetEntityModel(doorEntity)
 
-                -- Draw Red Marker on Door
                 DrawMarker(1, coords.x, coords.y, coords.z + 1.0, 0, 0, 0, 0, 0, 0, 0.3, 0.3, 0.3, 255, 0, 0, 150, false, true, 2, nil, nil, false)
-
-                -- Show Door Info in 3D Text
-                DrawText3D(coords.x, coords.y, coords.z + 1.2, string.format("Model: %s\nCoords: %.2f, %.2f, %.2f\nPress [E] to Select", model, coords.x, coords.y, coords.z))
-
-                -- Select Door on Key Press (E)
-                if IsControlJustPressed(0, 38) then
+                DrawText3D(
+                    coords.x, coords.y, coords.z + 1.2, 
+                    string.format(
+                        "Door ID: %s\nModel: %s\nCoords: %.2f, %.2f, %.2f\nPress [E] to Select\nPress [F] to Skip", 
+                        doorConfig.id,
+                        model, 
+                        coords.x, coords.y, coords.z
+                    )
+                )
+                if IsControlJustPressed(0, 38) then -- E pressed
                     selectedDoor = doorEntity
+                    break
+                elseif IsControlJustPressed(0, 23) then -- F pressed
+                    selectedDoor = nil
                     break
                 end
             else
-                -- Display "No Door Found"
                 DrawText3D(GetEntityCoords(PlayerPedId()).x, GetEntityCoords(PlayerPedId()).y, GetEntityCoords(PlayerPedId()).z + 1.0, "~r~No valid door detected!")
             end
         end
 
-        -- Apply Selected Door Data
         if selectedDoor then
             local coords = GetEntityCoords(selectedDoor)
             local model = GetEntityModel(selectedDoor)
@@ -118,6 +122,21 @@ function WaitForDoorSelection(doorConfig)
 
             SaveDoorConfig(doorConfig)
             Notification:Success("Door saved successfully!", 3500, "check-circle")
+
+            -- Check for double door ID after saving main door
+            if doorConfig.double and not FirstOneDone then
+                Notification:Success('Now select the double door: ' .. doorConfig.double, 4000, 'eye')
+                local doubleDoorConfig = {
+                    id = doorConfig.double,
+                    model = nil,
+                    coords = nil,
+                    locked = doorConfig.locked,
+                    double = doorConfig.id,
+                    restricted = doorConfig.restricted,
+                    special = doorConfig.special
+                }
+                WaitForDoorSelection(doubleDoorConfig, true)
+            end
         else
             Notification:Error("No door selected!", 3500, "times-circle")
         end
